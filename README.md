@@ -1,45 +1,22 @@
-# 314test
-# NexaFlow Landing Page
-
-A modern landing page built with React and Flask.
+# Landing Page
 
 ## Setup
-
 ### Backend
 ```bash
-cd backend
+cd 314/backend
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
-python app.py
+python run.py
 ```
 
 ### Frontend
+Using a split terminal
 ```bash
-cd frontend
+cd 314/frontend
 npm install
-npm start
+npm run dev
 ```
 
-The frontend runs on http://localhost:3000
-The backend runs on http://localhost:5000
-```
-
-## 5. **Add .gitignore**
-
-Create **.gitignore** in the root:
-```
-# Python
-__pycache__/
-*.py[cod]
-venv/
-*.env
-
-# Node
-node_modules/
-build/
-.DS_Store
-
-# IDE
-.vscode/
-.idea/
+### How to edit the code
+For frontend design, most of the codes can be found in App.jsx

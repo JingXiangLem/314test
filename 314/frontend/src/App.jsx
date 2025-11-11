@@ -26,39 +26,39 @@ const AuthContext = createContext(null);
 
 const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const login = async (email, password, role) => {
+  // Check for existing session on mount
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      fetchCurrentUser();
+    } else {
+      setLoading(false);
+    }
+  }, []);
+
+  const fetchCurrentUser = async () => {
     try {
-      const res = await api.post('/auth/login', { email, password });
-      
-      // Store the token
-      localStorage.setItem('token', res.data.access_token);
-      
-      // Set user from response
-      setUser(res.data.user);
-      
-      return res.data;
+      const res = await api.get('/auth/me');
+      setUser(res.data);
     } catch (err) {
-      console.error('Login failed:', err);
-      throw err;
+      localStorage.removeItem('token');
+    } finally {
+      setLoading(false);
     }
   };
 
+  const login = async (email, password) => {
+    const res = await api.post('/auth/login', { email, password });
+    localStorage.setItem('token', res.data.access_token);
+    setUser(res.data.user);
+  };
+
   const register = async (data) => {
-    try {
-      const res = await api.post('/auth/register', data);
-      
-      // Store the token
-      localStorage.setItem('token', res.data.access_token);
-      
-      // Set user from response
-      setUser(res.data.user);
-      
-      return res.data;
-    } catch (err) {
-      console.error('Registration failed:', err);
-      throw err;
-    }
+    const res = await api.post('/auth/register', data);
+    localStorage.setItem('token', res.data.access_token);
+    setUser(res.data.user);
   };
 
   const logout = () => {
@@ -67,7 +67,7 @@ const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout }}>
+    <AuthContext.Provider value={{ user, login, register, logout, loading }}>
       {children}
     </AuthContext.Provider>
   );
@@ -86,10 +86,11 @@ const LoginPage = ({ onSwitch }) => {
     e.preventDefault();
     setError('');
     setLoading(true);
+    
     try {
       await login(email, password);
     } catch (err) {
-      setError(err.response?.data?.error || 'Login failed');
+      setError(err.response?.data?.error || 'Login failed. Please try again.');
     } finally {
       setLoading(false);
     }

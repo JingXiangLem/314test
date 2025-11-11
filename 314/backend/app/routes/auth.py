@@ -59,6 +59,7 @@ def login():
 @bp.route('/me', methods=['GET'])
 @jwt_required()
 def get_current_user():
+    print("Incoming headers: ", request.headers)
     user_id = get_jwt_identity()
     user = User.query.get(user_id)
     return jsonify(user.to_dict()), 200

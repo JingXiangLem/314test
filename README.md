@@ -176,7 +176,9 @@ cd 314/backend
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
+docker start mockfyp_mysql
 python run.py
+flask run
 ```
 
 ### Frontend

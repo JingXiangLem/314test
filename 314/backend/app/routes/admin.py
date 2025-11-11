@@ -36,6 +36,7 @@ def create_category():
 @bp.route('/stats', methods=['GET'])
 @jwt_required()
 def get_stats():
+    print("Incoming headers: ", request.headers)
     if not require_admin():
         return jsonify({'error': 'Unauthorized'}), 403
     

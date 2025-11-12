@@ -1,10 +1,12 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, Response
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app import db
 from app.models.user import User
 from app.models.system import SystemLog, ScheduledReport
 from datetime import datetime, timedelta
 import secrets
+import csv
+from io import StringIO
 
 bp = Blueprint('system', __name__, url_prefix='/api/system')
 
@@ -50,6 +52,28 @@ def get_audit_trail(user_id):
     ).limit(100).all()
     
     return jsonify([log.to_dict() for log in logs]), 200
+
+@bp.route('/export-csv', methods=['GET'])
+@jwt_required()
+def export_audit_csv():
+    logs = SystemLog.query.order_by(SystemLog.timestamp.desc()).all()
+
+    si = StringIO()
+    writer = csv.writer(si)
+    writer.writerow(['Timestamp', 'User', 'Action', 'Details', 'IP Address'])
+
+    for log in logs:
+        writer.writerow([
+            log.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+            getattr(log, 'username', None) or f"User #{log.user_id}",
+            log.action,
+            log.details or '',
+            log.ip_address or ''
+        ])
+
+    output = Response(si.getvalue(), mimetype='text/csv')
+    output.headers['Content-Disposition'] = 'attachment; filename=audit_logs.csv'
+    return output
 
 @bp.route('/scheduled-reports', methods=['GET'])
 @jwt_required()

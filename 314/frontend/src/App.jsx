@@ -1,5 +1,5 @@
 import { useState, createContext, useContext, useEffect } from 'react';
-import { Heart, Search, Plus, User, LogOut, FileText, Users, Bell, Star, Shield, Download, Ban, CheckCircle, Clock, AlertTriangle } from 'lucide-react';
+import { Heart, Search, Plus, User, LogOut, FileText, Users, Bell, Star, Shield, Download, Ban, CheckCircle, Clock, AlertTriangle, Mail, Send, KeyRound, ArrowLeft} from 'lucide-react';
 import axios from 'axios';
 
 const API_URL = 'http://localhost:5000/api';
@@ -75,7 +75,7 @@ const AuthProvider = ({ children }) => {
 
 const useAuth = () => useContext(AuthContext);
 
-const LoginPage = ({ onSwitch }) => {
+const LoginPage = ({ onSwitch, onForgotPassword }) => {
   const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -136,6 +136,16 @@ const LoginPage = ({ onSwitch }) => {
             />
           </div>
 
+          <div className="text-right">
+            <button
+              type="button"
+              onClick={onForgotPassword}
+              className="text-sm text-pink-300 hover:text-pink-200 transition"
+            >
+              Forgot your password?
+            </button>
+          </div>
+
           <button
             type="submit"
             disabled={loading}
@@ -151,7 +161,8 @@ const LoginPage = ({ onSwitch }) => {
             Register
           </button>
         </p>
-
+        
+        
         <div className="mt-6 p-4 bg-white/5 rounded-lg text-sm text-gray-300">
           <p className="font-semibold mb-2">Test Accounts:</p>
           <p>Admin: admin@mockfyp.com / admin123</p>
@@ -162,8 +173,234 @@ const LoginPage = ({ onSwitch }) => {
     </div>
   );
 };
+  const ForgotPasswordPage = ({ onBack, onResetNavigate }) => {
+  const [email, setEmail] = useState('');
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+  const [resetToken, setResetToken] = useState('');
+  const [loading, setLoading] = useState(false);
 
-const RegisterPage = ({ onSwitch }) => {
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setMessage('');
+    setResetToken('');
+    setLoading(true);
+
+    try {
+      const res = await api.post('/auth/forgot-password', { email });
+      setMessage(res.data?.message || 'If the email exists, a reset link has been sent.');
+      if (res.data?.reset_token) {
+        setResetToken(res.data.reset_token);
+      }
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to request password reset. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
+      <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 w-full max-w-md border border-white/20 text-white space-y-6">
+        <button
+          onClick={onBack}
+          className="flex items-center text-sm text-pink-300 hover:text-pink-200 transition"
+        >
+          <ArrowLeft className="h-4 w-4 mr-2" /> Back to Sign In
+        </button>
+
+        <div className="text-center space-y-2">
+          <div className="mx-auto h-16 w-16 flex items-center justify-center rounded-full bg-pink-500/20">
+            <Mail className="h-8 w-8 text-pink-300" />
+          </div>
+          <h1 className="text-3xl font-bold">Forgot Password</h1>
+          <p className="text-gray-300 text-sm">
+            Enter the email associated with your account and we'll send you a reset link.
+          </p>
+        </div>
+
+        {error && (
+          <div className="bg-red-500/20 border border-red-500 text-red-200 px-4 py-3 rounded-lg">
+            {error}
+          </div>
+        )}
+
+        {message && (
+          <div className="bg-green-500/20 border border-green-500 text-green-100 px-4 py-3 rounded-lg">
+            {message}
+          </div>
+        )}
+
+        {resetToken && (
+          <div className="bg-blue-500/10 border border-blue-500 text-blue-100 px-4 py-3 rounded-lg space-y-2">
+            <p className="font-semibold">Development Reset Token</p>
+            <code className="block bg-black/40 rounded px-3 py-2 text-sm break-all">{resetToken}</code>
+            <p className="text-xs text-blue-200">
+              This token is returned for testing purposes. In production it would be emailed to the user.
+            </p>
+            <button
+              onClick={() => onResetNavigate(resetToken)}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-semibold transition flex items-center justify-center"
+            >
+              <Send className="h-4 w-4 mr-2" /> Use Token to Reset Password
+            </button>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-white mb-2">Email</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-pink-400"
+              placeholder="your@email.com"
+              required
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-gradient-to-r from-pink-500 to-purple-600 text-white py-3 rounded-lg font-semibold hover:from-pink-600 hover:to-purple-700 transition transform hover:scale-105 disabled:opacity-50"
+          >
+            {loading ? 'Sending reset link...' : 'Send Reset Link'}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+  const ResetPasswordPage = ({ onBackToLogin, onGoToForgot, initialToken = '' }) => {
+  const [token, setToken] = useState(initialToken);
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setToken(initialToken);
+  }, [initialToken]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setMessage('');
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const res = await api.post('/auth/reset-password', { token, password });
+      setMessage(res.data?.message || 'Password reset successfully. You can now sign in with your new password.');
+      setPassword('');
+      setConfirmPassword('');
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to reset password. Please check your token and try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
+      <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 w-full max-w-md border border-white/20 text-white space-y-6">
+        <div className="flex items-center justify-between">
+          <button
+            onClick={onBackToLogin}
+            className="flex items-center text-sm text-pink-300 hover:text-pink-200 transition"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" /> Back to Sign In
+          </button>
+          <button
+            onClick={onGoToForgot}
+            className="text-sm text-blue-300 hover:text-blue-200 transition"
+          >
+            Need a new token?
+          </button>
+        </div>
+
+        <div className="text-center space-y-2">
+          <div className="mx-auto h-16 w-16 flex items-center justify-center rounded-full bg-purple-500/20">
+            <KeyRound className="h-8 w-8 text-purple-300" />
+          </div>
+          <h1 className="text-3xl font-bold">Reset Password</h1>
+          <p className="text-gray-300 text-sm">
+            Enter the reset token and your new password to regain access to your account.
+          </p>
+        </div>
+
+        {error && (
+          <div className="bg-red-500/20 border border-red-500 text-red-200 px-4 py-3 rounded-lg">
+            {error}
+          </div>
+        )}
+
+        {message && (
+          <div className="bg-green-500/20 border border-green-500 text-green-100 px-4 py-3 rounded-lg">
+            {message}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-white mb-2">Reset Token</label>
+            <input
+              type="text"
+              value={token}
+              onChange={(e) => setToken(e.target.value)}
+              className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-400"
+              placeholder="Paste your reset token"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-white mb-2">New Password</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-400"
+              placeholder="••••••••"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-white mb-2">Confirm Password</label>
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-400"
+              placeholder="Repeat new password"
+              required
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-gradient-to-r from-pink-500 to-purple-600 text-white py-3 rounded-lg font-semibold hover:from-pink-600 hover:to-purple-700 transition transform hover:scale-105 disabled:opacity-50"
+          >
+            {loading ? 'Resetting password...' : 'Reset Password'}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+  const RegisterPage = ({ onSwitch }) => {
   const { register } = useAuth();
   const [formData, setFormData] = useState({
     username: '',
@@ -188,7 +425,7 @@ const RegisterPage = ({ onSwitch }) => {
       setLoading(false);
     }
   };
-
+  
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
@@ -576,6 +813,25 @@ const Dashboard = () => {
     }
   };
 
+  const handleExportAuditCSV = async () => {
+    try {
+      const res = await api.get('/system/export-csv', { responseType: 'blob' });
+      const blob = new Blob([res.data], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'audit_logs.csv';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      alert('Audit log exported successfully!');
+    } catch (err) {
+      console.error('Failed to export audit logs:', err);
+      alert('Failed to export audit logs');
+    }
+  };
+  
   const handleAssignRole = async (userId, newRole) => {
     try {
       await api.put(`/admin/users/assign-role/${userId}`, { role: newRole });
@@ -585,6 +841,9 @@ const Dashboard = () => {
       alert('Failed to assign role');
     }
   };
+
+  const humanizeAction = (a) => ({
+    })[a] || a;
 
   const urgencyColors = {
     low: 'bg-green-500',
@@ -1361,18 +1620,29 @@ const Dashboard = () => {
                 <FileText className="h-5 w-5 mr-2" />
                 Audit
               </button>
+              <button onClick={handleExportAuditCSV}
+              className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-semibold flex items-center transition"
+            >
+              <Download className="h-5 w-5 mr-2" />
+              Export CSV
+            </button>
             </div>
 
             <div className="space-y-3">
               {systemLogs.length > 0 ? (
-                systemLogs.slice(0, 5).map((log) => (
-                  <div key={log.id} className="flex justify-between items-center bg-slate-700/40 rounded-lg px-4 py-3">
-                    <p className="text-gray-200 text-sm">{log.action}</p>
-                    <span className="text-gray-500 text-xs">
-                      {new Date(log.timestamp).toLocaleTimeString()}
-                    </span>
-                  </div>
-                ))
+                systemLogs.slice(0, 5).map((log) => {
+                  const who = log.username ?? log.user_name ?? log.user?.username ?? `User #${log.user_id ?? '?'}`;
+                  return (
+                    <div key={log.id} className="flex justify-between items-center bg-slate-700/40 rounded-lg px-4 py-3">
+                      <p className="text-gray-200 text-sm">
+                        <span className="font-semibold">{who}</span>{' — '}{humanizeAction(log.action)}
+                      </p>
+                      <span className="text-gray-500 text-xs">
+                        {new Date(log.timestamp).toLocaleTimeString()}
+                      </span>
+                    </div>
+                  );
+                })
               ) : (
                 <div className="text-center text-gray-400 py-6">
                   <AlertTriangle className="h-10 w-10 mx-auto mb-2 opacity-50" />
@@ -1383,6 +1653,50 @@ const Dashboard = () => {
             </div>
           </div>
         )}
+
+      {showAuditTrail && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-800 rounded-xl p-6 w-full max-w-4xl border border-purple-500/20">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-2xl font-bold text-white">Audit Trail</h3>
+              <button onClick={() => setShowAuditTrail(false)} className="text-white bg-slate-700 px-3 py-1 rounded">Close</button>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-slate-700">
+                    <th className="text-left text-white py-3 px-4">Timestamp</th>
+                    <th className="text-left text-white py-3 px-4">User</th>
+                    <th className="text-left text-white py-3 px-4">Action</th>
+                    <th className="text-left text-white py-3 px-4">Details</th>
+                    <th className="text-left text-white py-3 px-4">IP</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {systemLogs.map((log) => {
+                    const who = log.username ?? log.user_name ?? log.user?.username ?? `User #${log.user_id ?? '?'}`;
+                    return (
+                      <tr key={log.id} className="border-b border-slate-700/50">
+                        <td className="py-3 px-4 text-gray-300 text-sm">{new Date(log.timestamp).toLocaleString()}</td>
+                        <td className="py-3 px-4 text-white">{who}</td>
+                        <td className="py-3 px-4"><span className="bg-blue-600 text-white px-3 py-1 rounded-full text-xs">{log.action}</span></td>
+                        <td className="py-3 px-4 text-gray-300 text-sm">{log.details}</td>
+                        <td className="py-3 px-4 text-gray-400 text-sm">{log.ip_address}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              {systemLogs.length === 0 && (
+                <div className="text-center text-gray-400 py-8">
+                  <AlertTriangle className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                  <p>No system logs available</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {showReportModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -1460,16 +1774,22 @@ const Dashboard = () => {
 };
 
 export default function App() {
-  const [showRegister, setShowRegister] = useState(false);
+  const [authView, setAuthView] = useState('login');
+  const [prefilledResetToken, setPrefilledResetToken] = useState('');
 
   return (
     <AuthProvider>
-      <AppContent showRegister={showRegister} setShowRegister={setShowRegister} />
+      <AppContent
+        authView={authView}
+        setAuthView={setAuthView}
+        prefilledResetToken={prefilledResetToken}
+        setPrefilledResetToken={setPrefilledResetToken}
+      />
     </AuthProvider>
   );
 }
 
-function AppContent({ showRegister, setShowRegister }) {
+function AppContent({ authView, setAuthView, prefilledResetToken, setPrefilledResetToken }) {  
   const { user, loading } = useAuth();
 
   if (loading) {
@@ -1481,11 +1801,48 @@ function AppContent({ showRegister, setShowRegister }) {
   }
 
   if (!user) {
-    return showRegister ? (
-      <RegisterPage onSwitch={() => setShowRegister(false)} />
-    ) : (
-      <LoginPage onSwitch={() => setShowRegister(true)} />
-    );
+    switch (authView) {
+      case 'register':
+        return <RegisterPage onSwitch={() => setAuthView('login')} />;
+      case 'forgot':
+        return (
+          <ForgotPasswordPage
+            onBack={() => {
+              setPrefilledResetToken('');
+              setAuthView('login');
+            }}
+            onResetNavigate={(token) => {
+              setPrefilledResetToken(token || '');
+              setAuthView('reset');
+            }}
+          />
+        );
+      case 'reset':
+        return (
+          <ResetPasswordPage
+            initialToken={prefilledResetToken}
+            onBackToLogin={() => {
+              setPrefilledResetToken('');
+              setAuthView('login');
+            }}
+            onGoToForgot={() => {
+              setPrefilledResetToken('');
+              setAuthView('forgot');
+            }}
+          />
+        );
+      case 'login':
+      default:
+        return (
+          <LoginPage
+            onSwitch={() => setAuthView('register')}
+            onForgotPassword={() => {
+              setPrefilledResetToken('');
+              setAuthView('forgot');
+            }}
+          />
+        );
+    }
   }
 
   return <Dashboard />;

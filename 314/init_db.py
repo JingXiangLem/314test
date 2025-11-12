@@ -178,7 +178,6 @@ with app.app_context():
     review = VolunteerReview(
         pin_id=pin1.id,
         volunteer_id=csr1.id,
-        request_id=requests[0].id,
         rating=5,
         comment="Very helpful and patient! Highly recommend."
     )

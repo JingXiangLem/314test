@@ -82,7 +82,7 @@ class VolunteerReview(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     pin_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     volunteer_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    request_id = db.Column(db.Integer, db.ForeignKey('help_requests.id'), nullable=False)
+    request_id = db.Column(db.Integer, db.ForeignKey('help_requests.id'), nullable=True)
     rating = db.Column(db.Integer, nullable=False)
     comment = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)

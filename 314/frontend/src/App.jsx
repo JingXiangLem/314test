@@ -319,7 +319,12 @@ const Dashboard = () => {
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [stats, setStats] = useState(null);
   const [newRequest, setNewRequest] = useState({ title: '', description: '', urgency: 'medium', location: '' });
-  const [review, setReview] = useState({ volunteer_id: null, request_id: null, rating: 5, comment: '' });
+  const [review, setReview] = useState({ volunteer_id: null, request_id: 1, rating: 5, comment: '' });
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [scheduledReports, setScheduledReports] = useState([]);
+  const [newReport, setNewReport] = useState({name: '', report_type: 'user_activity', frequency: 'daily', recipients: ''});
+  const [systemLogs, setSystemLogs] = useState([]);
+  const [showAuditTrail, setShowAuditTrail] = useState(false);
 
   useEffect(() => {
     loadRequests();
@@ -335,7 +340,43 @@ const Dashboard = () => {
       loadUsers();
       loadStats();
     }
+    if (user.role === 'manager') {
+      loadSystemLogs();
+      loadScheduledReports();
+      loadStats();
+    }
   }, [user.role]);
+
+    const loadSystemLogs = async () => {
+    try {
+      const res = await api.get('/system/logs');
+      setSystemLogs(res.data.logs || []);
+    } catch (err) {
+      console.error('Failed to load system logs', err);
+    }
+  };
+
+  const loadScheduledReports = async () => {
+    try {
+      const res = await api.get('/system/scheduled-reports');
+      setScheduledReports(res.data);
+    } catch (err) {
+      console.error('Failed to load scheduled reports', err);
+    }
+  };
+
+  const handleCreateScheduledReport = async (e) => {
+    e.preventDefault();
+    try {
+      await api.post('/system/scheduled-reports', newReport);
+      alert('Scheduled report created successfully!');
+      setShowReportModal(false);
+      setNewReport({ name: '', report_type: 'user_activity', frequency: 'daily', recipients: '' });
+      loadScheduledReports();
+    } catch (err) {
+      alert('Failed to create scheduled report');
+    }
+  };
 
   const loadShortlist = async () => {
     try {
@@ -500,7 +541,7 @@ const Dashboard = () => {
       await api.post('/pin/review', review);
       alert('Review submitted successfully!');
       setShowReviewModal(false);
-      setReview({ volunteer_id: null, request_id: null, rating: 5, comment: '' });
+      setReview({ volunteer_id: null, rating: 5, comment: '' });
     } catch (err) {
       alert('Failed to submit review');
     }
@@ -508,14 +549,29 @@ const Dashboard = () => {
 
   const handleExportCSV = async () => {
     try {
-      const res = await api.get("/admin/users/export-csv", { responseType: "blob" });
-      const blob = new Blob([res.data.csv_data], { type: 'text/csv' });
+      // Tell axios to expect a blob/text response, not JSON
+      const res = await api.get('/admin/users/export-csv', {
+        responseType: 'blob' // Important!
+      });
+      
+      // Create blob directly from response data
+      const blob = new Blob([res.data], { type: 'text/csv' });
       const url = window.URL.createObjectURL(blob);
+      
+      // Create download link
       const a = document.createElement('a');
       a.href = url;
-      a.download = "users.csv";
+      a.download = 'users.csv'; // Set filename here
+      document.body.appendChild(a); // Required for Firefox
       a.click();
+      
+      // Cleanup
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      
+      alert('CSV exported successfully!');
     } catch (err) {
+      console.error('Export error:', err);
       alert('Failed to export CSV');
     }
   };
@@ -595,7 +651,7 @@ const Dashboard = () => {
               Rate Volunteers
             </button>
           </>
-        )}
+          )}
 
           {user.role === 'csr' && (
             <button
@@ -620,8 +676,19 @@ const Dashboard = () => {
               Admin Panel
             </button>
           )}
+          {user.role === 'manager' && (
+            <button
+              onClick={() => setActiveTab('manager')}
+              className={`px-6 py-3 rounded-lg font-semibold transition ${
+                activeTab === 'manager' ? 'bg-purple-600 text-white' : 'bg-slate-800 text-gray-300 hover:bg-slate-700'
+              }`}
+            >
+              <Shield className="inline h-5 w-5 mr-2" />
+              Manager Panel
+            </button>
+          )}
         </div>
-
+          
         {activeTab === 'browse' && (
           <div>
             <div className="flex justify-between items-center mb-6">
@@ -722,7 +789,7 @@ const Dashboard = () => {
             </div>
           </div>
         )}
-
+        
         {activeTab === 'my-requests' && user.role === 'pin' && (
           <div>
             <h2 className="text-3xl font-bold text-white mb-6">My Requests</h2>
@@ -787,8 +854,8 @@ const Dashboard = () => {
               )}
             </div>
           </div>
-)}
-
+        )}
+        
         {activeTab === 'rate-volunteer' && user.role === 'pin' && (
           <div>
             <h2 className="text-3xl font-bold text-white mb-6">Rate & Manage Volunteers</h2>
@@ -987,7 +1054,7 @@ const Dashboard = () => {
               </div>
             )}
           </div>
-)}
+        )}
 
         {activeTab === 'accepted-tasks' && user.role === 'csr' && (
           <div>
@@ -1027,7 +1094,8 @@ const Dashboard = () => {
               )}
             </div>
           </div>
-)}
+        )}
+
         {activeTab === 'admin' && user.role === 'admin' && (
           <div>
             <div className="flex justify-between items-center mb-6">
@@ -1175,6 +1243,7 @@ const Dashboard = () => {
               <div className="flex space-x-4">
                 <button
                   type="submit"
+                  onClick={() => setReview({ ...review, request_id: 1})}
                   className="flex-1 bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-lg font-semibold transition"
                 >
                   Submit Review
@@ -1182,6 +1251,201 @@ const Dashboard = () => {
                 <button
                   type="button"
                   onClick={() => setShowReviewModal(false)}
+                  className="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-3 rounded-lg font-semibold transition"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'manager' && user.role === 'manager' && (
+          <div>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-3xl font-bold text-white">Manager Dashboard</h2>
+              <button
+                onClick={() => setShowReportModal(true)}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold flex items-center"
+              >
+                <Plus className="h-5 w-5 mr-2" />
+                Schedule Report
+              </button>
+            </div>
+
+            {stats && (
+              <div className="grid md:grid-cols-4 gap-6 mb-8">
+                <div className="bg-gradient-to-br from-blue-600 to-blue-800 rounded-xl p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-blue-200 text-sm">Total Users</p>
+                      <p className="text-4xl font-bold text-white">{stats.total_users}</p>
+                    </div>
+                    <Users className="h-12 w-12 text-blue-200" />
+                  </div>
+                </div>
+                <div className="bg-gradient-to-br from-green-600 to-green-800 rounded-xl p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-green-200 text-sm">Active Users</p>
+                      <p className="text-4xl font-bold text-white">{stats.active_users}</p>
+                    </div>
+                    <CheckCircle className="h-12 w-12 text-green-200" />
+                  </div>
+                </div>
+                <div className="bg-gradient-to-br from-purple-600 to-purple-800 rounded-xl p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-purple-200 text-sm">Total Requests</p>
+                      <p className="text-4xl font-bold text-white">{stats.total_requests}</p>
+                    </div>
+                    <FileText className="h-12 w-12 text-purple-200" />
+                  </div>
+                </div>
+                <div className="bg-gradient-to-br from-pink-600 to-pink-800 rounded-xl p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-pink-200 text-sm">Completed</p>
+                      <p className="text-4xl font-bold text-white">{stats.completed_requests}</p>
+                    </div>
+                    <Star className="h-12 w-12 text-pink-200" />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Scheduled Reports Section */}
+            <div className="bg-slate-800/50 rounded-xl p-6 border border-purple-500/20 mb-6">
+              <h3 className="text-2xl font-bold text-white mb-6">Scheduled Reports</h3>
+              <div className="space-y-4">
+                {scheduledReports.map((report) => (
+                  <div key={report.id} className="bg-slate-700/50 rounded-lg p-4 border border-slate-600">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h4 className="text-lg font-bold text-white mb-2">{report.name}</h4>
+                        <div className="flex space-x-4 text-sm text-gray-400">
+                          <span>Type: {report.report_type}</span>
+                          <span>Frequency: {report.frequency}</span>
+                          <span className={`px-2 py-1 rounded ${report.is_active ? 'bg-green-600' : 'bg-red-600'} text-white`}>
+                            {report.is_active ? 'Active' : 'Inactive'}
+                          </span>
+                        </div>
+                        {report.last_run && (
+                          <p className="text-gray-400 text-sm mt-2">Last run: {new Date(report.last_run).toLocaleString()}</p>
+                        )}
+                        {report.next_run && (
+                          <p className="text-gray-400 text-sm">Next run: {new Date(report.next_run).toLocaleString()}</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {scheduledReports.length === 0 && (
+                  <div className="text-center text-gray-400 py-8">
+                    <FileText className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                    <p>No scheduled reports yet</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* System Logs Section */}
+            <div className="bg-slate-800/50 rounded-xl p-6 border border-purple-500/20">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-2xl font-bold text-white">Recent Activity</h3>
+              <button
+                onClick={() => setShowAuditTrail(true)}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-semibold flex items-center transition"
+              >
+                <FileText className="h-5 w-5 mr-2" />
+                Audit
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {systemLogs.length > 0 ? (
+                systemLogs.slice(0, 5).map((log) => (
+                  <div key={log.id} className="flex justify-between items-center bg-slate-700/40 rounded-lg px-4 py-3">
+                    <p className="text-gray-200 text-sm">{log.action}</p>
+                    <span className="text-gray-500 text-xs">
+                      {new Date(log.timestamp).toLocaleTimeString()}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center text-gray-400 py-6">
+                  <AlertTriangle className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                  <p>No recent activity</p>
+                </div>
+              )}
+              </div>
+            </div>
+          </div>
+        )}
+
+      {showReportModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-800 rounded-xl p-8 max-w-md w-full border border-purple-500/20">
+            <h3 className="text-2xl font-bold text-white mb-6">Schedule New Report</h3>
+            <form onSubmit={handleCreateScheduledReport} className="space-y-4">
+              <div>
+                <label className="block text-white mb-2">Report Name</label>
+                <input
+                  type="text"
+                  value={newReport.name}
+                  onChange={(e) => setNewReport({ ...newReport, name: e.target.value })}
+                  className="w-full px-4 py-3 rounded-lg bg-slate-700 text-white border border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  placeholder="Monthly User Activity Report"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-white mb-2">Report Type</label>
+                <select
+                  value={newReport.report_type}
+                  onChange={(e) => setNewReport({ ...newReport, report_type: e.target.value })}
+                  className="w-full px-4 py-3 rounded-lg bg-slate-700 text-white border border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                >
+                  <option value="user_activity">User Activity</option>
+                  <option value="request_stats">Request Statistics</option>
+                  <option value="volunteer_performance">Volunteer Performance</option>
+                  <option value="system_health">System Health</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-white mb-2">Frequency</label>
+                <select
+                  value={newReport.frequency}
+                  onChange={(e) => setNewReport({ ...newReport, frequency: e.target.value })}
+                  className="w-full px-4 py-3 rounded-lg bg-slate-700 text-white border border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                >
+                  <option value="daily">Daily</option>
+                  <option value="weekly">Weekly</option>
+                  <option value="monthly">Monthly</option>
+                  <option value="quarterly">Quarterly</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-white mb-2">Recipients (comma-separated emails)</label>
+                <input
+                  type="text"
+                  value={newReport.recipients}
+                  onChange={(e) => setNewReport({ ...newReport, recipients: e.target.value })}
+                  className="w-full px-4 py-3 rounded-lg bg-slate-700 text-white border border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  placeholder="admin@mockfyp.com, manager@mockfyp.com"
+                />
+              </div>
+              <div className="flex space-x-4">
+                <button
+                  type="submit"
+                  className="flex-1 bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-lg font-semibold transition"
+                >
+                  Create Report
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowReportModal(false)}
                   className="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-3 rounded-lg font-semibold transition"
                 >
                   Cancel

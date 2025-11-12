@@ -305,11 +305,15 @@ const RegisterPage = ({ onSwitch }) => {
 const Dashboard = () => {
   const { user, logout } = useAuth();
   const [activeTab, setActiveTab] = useState('browse');
+  const [volunteerTab, setVolunteerTab] = useState('shortlist');
   const [requests, setRequests] = useState([]);
   const [myRequests, setMyRequests] = useState([]);
   const [acceptedTasks, setAcceptedTasks] = useState([]);
   const [users, setUsers] = useState([]);
   const [blacklist, setBlacklist] = useState([]);
+  const [shortlist, setShortlist] = useState([]); // Add this
+  const [volunteerReviews, setVolunteerReviews] = useState([]); // Add this
+  const [volunteerAction, setVolunteerAction] = useState({ volunteer_id: null });
   const [showNewRequest, setShowNewRequest] = useState(false);
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState(null);
@@ -322,6 +326,7 @@ const Dashboard = () => {
     if (user.role === 'pin') {
       loadMyRequests();
       loadBlacklist();
+      loadShortlist();
     }
     if (user.role === 'csr') {
       loadAcceptedTasks();
@@ -331,6 +336,70 @@ const Dashboard = () => {
       loadStats();
     }
   }, [user.role]);
+
+  const loadShortlist = async () => {
+    try {
+      const res = await api.get('/pin/shortlist');
+      setShortlist(res.data);
+    } catch (err) {
+      console.error('Failed to load shortlist', err);
+    }
+  };
+
+  const handleAddToShortlist = async (volunteerId) => {
+    if (!volunteerId) return;
+    try {
+      await api.post('/pin/shortlist', { volunteer_id: volunteerId });
+      alert('Volunteer added to shortlist!');
+      loadShortlist();
+      setVolunteerAction({ volunteer_id: null });
+    } catch (err) {
+      alert('Failed to add to shortlist');
+    }
+  };
+
+  const handleRemoveFromShortlist = async (shortlistId) => {
+    try {
+      await api.delete(`/pin/shortlist/${shortlistId}`);
+      alert('Removed from shortlist');
+      loadShortlist();
+    } catch (err) {
+      alert('Failed to remove from shortlist');
+    }
+  };
+
+  const handleRemoveFromBlacklist = async (volunteerId) => {
+    try {
+      await api.delete(`/pin/blacklist/${volunteerId}`);
+      alert('Removed from blacklist');
+      loadBlacklist();
+    } catch (err) {
+      alert('Failed to remove from blacklist');
+    }
+  };
+
+  const handleBlacklistVolunteer = async (volunteerId, reason) => {
+    if (!volunteerId || !reason) return;
+    try {
+      await api.post('/pin/blacklist', { volunteer_id: volunteerId, reason });
+      alert('Volunteer blacklisted');
+      loadBlacklist();
+      setVolunteerAction({ volunteer_id: null });
+    } catch (err) {
+      alert('Failed to blacklist volunteer');
+    }
+  };
+
+  const loadVolunteerReviews = async (volunteerId) => {
+    if (!volunteerId) return;
+    try {
+      const res = await api.get(`/pin/reviews/${volunteerId}`);
+      setVolunteerReviews(res.data);
+    } catch (err) {
+      console.error('Failed to load reviews', err);
+      setVolunteerReviews([]);
+    }
+  };
 
   const loadRequests = async () => {
     try {
@@ -425,19 +494,6 @@ const Dashboard = () => {
     }
   };
 
-  const handleBlacklistVolunteer = async (volunteerId) => {
-    const reason = prompt('Reason for blacklisting:');
-    if (reason) {
-      try {
-        await api.post('/pin/blacklist', { volunteer_id: volunteerId, reason });
-        alert('Volunteer blacklisted');
-        loadBlacklist();
-      } catch (err) {
-        alert('Failed to blacklist volunteer');
-      }
-    }
-  };
-
   const handleSubmitReview = async (e) => {
     e.preventDefault();
     try {
@@ -519,26 +575,26 @@ const Dashboard = () => {
           </button>
           {user.role === 'pin' && (
             <>
-              <button
-                onClick={() => setActiveTab('my-requests')}
-                className={`px-6 py-3 rounded-lg font-semibold transition ${
-                  activeTab === 'my-requests' ? 'bg-purple-600 text-white' : 'bg-slate-800 text-gray-300 hover:bg-slate-700'
-                }`}
-              >
-                <FileText className="inline h-5 w-5 mr-2" />
-                My Requests
-              </button>
-              <button
-                onClick={() => setActiveTab('blacklist')}
-                className={`px-6 py-3 rounded-lg font-semibold transition ${
-                  activeTab === 'blacklist' ? 'bg-purple-600 text-white' : 'bg-slate-800 text-gray-300 hover:bg-slate-700'
-                }`}
-              >
-                <Ban className="inline h-5 w-5 mr-2" />
-                Blacklist
-              </button>
-            </>
-          )}
+            <button
+              onClick={() => setActiveTab('my-requests')}
+              className={`px-6 py-3 rounded-lg font-semibold transition ${
+                activeTab === 'my-requests' ? 'bg-purple-600 text-white' : 'bg-slate-800 text-gray-300 hover:bg-slate-700'
+              }`}
+            >
+              <FileText className="inline h-5 w-5 mr-2" />
+              My Requests
+            </button>
+            <button
+              onClick={() => setActiveTab('rate-volunteer')}
+              className={`px-6 py-3 rounded-lg font-semibold transition ${
+                activeTab === 'rate-volunteer' ? 'bg-purple-600 text-white' : 'bg-slate-800 text-gray-300 hover:bg-slate-700'
+              }`}
+            >
+              <Star className="inline h-5 w-5 mr-2" />
+              Rate Volunteers
+            </button>
+          </>
+        )}
           {user.role === 'csr' && (
             <button
               onClick={() => setActiveTab('accepted-tasks')}
@@ -671,10 +727,276 @@ const Dashboard = () => {
             <div className="grid gap-6">
               {myRequests.map((req) => (
                 <div key={req.id} className="bg-slate-800/50 backdrop-blur-lg rounded-xl p-6 border border-purple-500/20">
-                  <div className="flex justify-between items-start">
+                  <div className="flex justify-between items-start mb-4">
                     <div>
                       <h3 className="text-xl font-bold text-white mb-2">{req.title}</h3>
                       <p className="text-gray-300 mb-4">{req.description}</p>
+                      <div className="flex space-x-4 text-sm text-gray-400">
+                        <span>📍 {req.location}</span>
+                        <span className={`${urgencyColors[req.urgency]} text-white px-2 py-1 rounded`}>
+                          {req.urgency}
+                        </span>
+                        <span>Status: {req.status}</span>
+                        <span>👁️ {req.view_count} views</span>
+                      </div>
+                    </div>
+                    <span className={`${urgencyColors[req.urgency]} text-white px-3 py-1 rounded-full text-sm font-semibold`}>
+                      {req.urgency.toUpperCase()}
+                    </span>
+                  </div>
+                  {req.status === 'pending' && (
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => {/* Edit request logic */}}
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold transition text-sm"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => {/* Delete request logic */}}
+                        className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-semibold transition text-sm"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  )}
+                  {req.status === 'accepted' && (
+                    <button
+                      onClick={() => {/* Mark as completed and trigger review */}}
+                      className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-semibold flex items-center"
+                    >
+                      <CheckCircle className="h-5 w-5 mr-2" />
+                      Mark as Completed
+                    </button>
+                  )}
+                </div>
+              ))}
+              {myRequests.length === 0 && (
+                <div className="text-center text-gray-400 py-12">
+                  <FileText className="h-16 w-16 mx-auto mb-4 opacity-50" />
+                  <p>You haven't created any requests yet</p>
+                  <button
+                    onClick={() => setActiveTab('browse')}
+                    className="mt-4 bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-semibold transition"
+                  >
+                    Create Your First Request
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+)}
+
+        {activeTab === 'rate-volunteer' && user.role === 'pin' && (
+          <div>
+            <h2 className="text-3xl font-bold text-white mb-6">Rate & Manage Volunteers</h2>
+            
+            {/* Tab selector for Shortlist/Blacklist/Reviews */}
+            <div className="flex space-x-4 mb-6">
+              <button
+                onClick={() => setVolunteerTab('shortlist')}
+                className={`px-4 py-2 rounded-lg font-semibold transition ${
+                  volunteerTab === 'shortlist' ? 'bg-green-600 text-white' : 'bg-slate-700 text-gray-300 hover:bg-slate-600'
+                }`}
+              >
+                ⭐ Shortlist
+              </button>
+              <button
+                onClick={() => setVolunteerTab('blacklist')}
+                className={`px-4 py-2 rounded-lg font-semibold transition ${
+                  volunteerTab === 'blacklist' ? 'bg-red-600 text-white' : 'bg-slate-700 text-gray-300 hover:bg-slate-600'
+                }`}
+              >
+                🚫 Blacklist
+              </button>
+              <button
+                onClick={() => setVolunteerTab('add')}
+                className={`px-4 py-2 rounded-lg font-semibold transition ${
+                  volunteerTab === 'add' ? 'bg-purple-600 text-white' : 'bg-slate-700 text-gray-300 hover:bg-slate-600'
+                }`}
+              >
+                ➕ Add Volunteer
+              </button>
+            </div>
+
+            {/* Shortlist View */}
+            {volunteerTab === 'shortlist' && (
+              <div>
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-xl font-bold text-white">My Shortlisted Volunteers</h3>
+                </div>
+                <div className="grid gap-4">
+                  {shortlist.map((item) => (
+                    <div key={item.id} className="bg-slate-800/50 rounded-xl p-6 border border-green-500/20">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className="text-lg font-bold text-white mb-2">{item.volunteer_name}</h4>
+                          <p className="text-gray-400 text-sm">Volunteer ID: {item.volunteer_id}</p>
+                          <p className="text-gray-400 text-sm">Added: {new Date(item.created_at).toLocaleDateString()}</p>
+                        </div>
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => {
+                              setReview({ ...review, volunteer_id: item.volunteer_id });
+                              setShowReviewModal(true);
+                            }}
+                            className="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg font-semibold transition text-sm"
+                          >
+                            ⭐ Review
+                          </button>
+                          <button
+                            onClick={() => handleRemoveFromShortlist(item.id)}
+                            className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-semibold transition text-sm"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  {shortlist.length === 0 && (
+                    <div className="text-center text-gray-400 py-12 bg-slate-800/30 rounded-xl">
+                      <Star className="h-16 w-16 mx-auto mb-4 opacity-50" />
+                      <p>No volunteers in your shortlist yet</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Blacklist View */}
+            {volunteerTab === 'blacklist' && (
+              <div>
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-xl font-bold text-white">Blacklisted Volunteers</h3>
+                </div>
+                <div className="grid gap-4">
+                  {blacklist.map((item) => (
+                    <div key={item.id} className="bg-slate-800/50 rounded-xl p-6 border border-red-500/20">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <h4 className="text-lg font-bold text-white mb-2">{item.volunteer_name}</h4>
+                          <p className="text-gray-400 text-sm mb-2">Volunteer ID: {item.volunteer_id}</p>
+                          <div className="bg-red-900/30 border border-red-500/30 rounded-lg p-3 mb-2">
+                            <p className="text-red-300 text-sm font-semibold mb-1">Reason:</p>
+                            <p className="text-gray-300 text-sm">{item.reason}</p>
+                          </div>
+                          <p className="text-gray-400 text-sm">Blacklisted: {new Date(item.created_at).toLocaleDateString()}</p>
+                        </div>
+                        <button
+                          onClick={() => handleRemoveFromBlacklist(item.volunteer_id)}
+                          className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-semibold transition text-sm"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  {blacklist.length === 0 && (
+                    <div className="text-center text-gray-400 py-12 bg-slate-800/30 rounded-xl">
+                      <Ban className="h-16 w-16 mx-auto mb-4 opacity-50" />
+                      <p>No blacklisted volunteers</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Add Volunteer (Shortlist/Blacklist/Review) */}
+            {volunteerTab === 'add' && (
+              <div className="bg-slate-800/50 rounded-xl p-6 border border-purple-500/20">
+                <h3 className="text-xl font-bold text-white mb-6">Manage Volunteer</h3>
+                
+                <div className="space-y-6">
+                  {/* Volunteer ID Input */}
+                  <div>
+                    <label className="block text-white mb-2">Volunteer ID</label>
+                    <input
+                      type="number"
+                      value={volunteerAction.volunteer_id || ''}
+                      onChange={(e) => setVolunteerAction({ ...volunteerAction, volunteer_id: parseInt(e.target.value) })}
+                      className="w-full px-4 py-3 rounded-lg bg-slate-700 text-white border border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      placeholder="Enter volunteer ID"
+                    />
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="grid grid-cols-3 gap-4">
+                    <button
+                      onClick={() => handleAddToShortlist(volunteerAction.volunteer_id)}
+                      disabled={!volunteerAction.volunteer_id}
+                      className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      ⭐ Add to Shortlist
+                    </button>
+                    
+                    <button
+                      onClick={() => {
+                        const reason = prompt('Reason for blacklisting:');
+                        if (reason) {
+                          handleBlacklistVolunteer(volunteerAction.volunteer_id, reason);
+                        }
+                      }}
+                      disabled={!volunteerAction.volunteer_id}
+                      className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      🚫 Blacklist
+                    </button>
+                    
+                    <button
+                      onClick={() => {
+                        setReview({ ...review, volunteer_id: volunteerAction.volunteer_id });
+                        setShowReviewModal(true);
+                      }}
+                      disabled={!volunteerAction.volunteer_id}
+                      className="bg-yellow-600 hover:bg-yellow-700 text-white px-6 py-3 rounded-lg font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      ⭐ Write Review
+                    </button>
+                  </div>
+
+                  {/* View Past Reviews */}
+                  <div className="border-t border-slate-700 pt-6">
+                    <button
+                      onClick={() => loadVolunteerReviews(volunteerAction.volunteer_id)}
+                      disabled={!volunteerAction.volunteer_id}
+                      className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      📋 View All Reviews for This Volunteer
+                    </button>
+                    
+                    {volunteerReviews.length > 0 && (
+                      <div className="mt-4 space-y-3">
+                        <h4 className="text-white font-semibold">Reviews:</h4>
+                        {volunteerReviews.map((rev) => (
+                          <div key={rev.id} className="bg-slate-700 rounded-lg p-4">
+                            <div className="flex justify-between items-start mb-2">
+                              <span className="text-white font-semibold">{rev.pin_name}</span>
+                              <span className="text-yellow-400">{'⭐'.repeat(rev.rating)}</span>
+                            </div>
+                            <p className="text-gray-300 text-sm mb-1">{rev.comment}</p>
+                            <p className="text-gray-500 text-xs">{new Date(rev.created_at).toLocaleDateString()}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+)}
+
+        {activeTab === 'accepted-tasks' && user.role === 'csr' && (
+          <div>
+            <h2 className="text-3xl font-bold text-white mb-6">My Accepted Tasks</h2>
+            <div className="grid gap-6">
+              {acceptedTasks.map((task) => (
+                <div key={task.id} className="bg-slate-800/50 backdrop-blur-lg rounded-xl p-6 border border-purple-500/20">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h3 className="text-xl font-bold text-white mb-2">{task.title}</h3>
+                      <p className="text-gray-300 mb-4">{task.description}</p>
                       <div className="flex space-x-4 text-sm text-gray-400">
                         <span>📍 {task.location}</span>
                         <span className={`${urgencyColors[task.urgency]} text-white px-2 py-1 rounded`}>
@@ -703,8 +1025,7 @@ const Dashboard = () => {
               )}
             </div>
           </div>
-        )}
-
+)}
         {activeTab === 'admin' && user.role === 'admin' && (
           <div>
             <div className="flex justify-between items-center mb-6">

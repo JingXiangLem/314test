@@ -508,12 +508,12 @@ const Dashboard = () => {
 
   const handleExportCSV = async () => {
     try {
-      const res = await api.get('/admin/users/export-csv');
+      const res = await api.get("/admin/users/export-csv", { responseType: "blob" });
       const blob = new Blob([res.data.csv_data], { type: 'text/csv' });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = res.data.filename;
+      a.download = "users.csv";
       a.click();
     } catch (err) {
       alert('Failed to export CSV');

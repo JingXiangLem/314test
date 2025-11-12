@@ -1,5 +1,7 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, Response
+from datetime import datetime
 from flask_jwt_extended import jwt_required, get_jwt_identity
+from sqlalchemy import text
 from app import db
 from app.models.user import User
 from app.models.system import SystemLog
@@ -47,32 +49,20 @@ def assign_role(user_id):
 @bp.route('/export-csv', methods=['GET'])
 @jwt_required()
 def export_users_csv():
-    if not require_admin():
-        return jsonify({'error': 'Unauthorized'}), 403
-    
-    users = User.query.all()
-    
+    result = db.session.execute(text("SELECT id, username, email FROM users")).mappings()
+
+    # 2️⃣ Prepare CSV in memory
     output = io.StringIO()
     writer = csv.writer(output)
-    
-    writer.writerow(['ID', 'Username', 'Email', 'Role', 'Active', 'Created At'])
-    
-    for user in users:
-        writer.writerow([
-            user.id,
-            user.username,
-            user.email,
-            user.role,
-            'Yes' if user.is_active else 'No',
-            user.created_at.strftime('%Y-%m-%d %H:%M:%S')
-        ])
-    
-    log_action('EXPORT_USERS', f'Exported {len(users)} users to CSV')
-    
-    return jsonify({
-        'csv_data': output.getvalue(),
-        'filename': f'users_export_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
-    }), 200
+    writer.writerow(['ID', 'Email', 'Username'])  # Header row
+
+    for row in result:
+        writer.writerow([row['id'], row['email'], row['username']])
+
+    # 3️⃣ Create downloadable response
+    response = Response(output.getvalue(), mimetype='text/csv')
+    response.headers["Content-Disposition"] = "attachment; filename=users.csv"
+    return response
 
 @bp.route('/deactivate/<int:user_id>', methods=['PUT'])
 @jwt_required()

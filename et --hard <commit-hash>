@@ -1,0 +1,12 @@
+[33m38c43ed[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m HEAD@{0}: rebase (abort): returning to refs/heads/main
+[33m8f8e181[m HEAD@{1}: commit: Fixing My Requests Page
+[33mf44f857[m HEAD@{2}: commit: Fixed admin functions
+[33m96be92c[m HEAD@{3}: commit: Stuck at users api
+[33m81c441a[m HEAD@{4}: commit: Trying to link frontend to backend and db
+[33mbf80028[m HEAD@{5}: commit: Committing README
+[33md59d76d[m HEAD@{6}: commit: Committing README
+[33m9697cdf[m HEAD@{7}: commit: Set up docker db and various functions
+[33mbfa6302[m HEAD@{8}: pull (start): checkout bfa630221c9925f8f5cef58c18553bec46da5908
+[33m38c43ed[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m HEAD@{9}: checkout: moving from 9d208b4cc334f6a1b603e71a4725f8797bf0fc4b to main
+[33m9d208b4[m HEAD@{10}: commit: git Set up docker db and various functions
+[33mbfa6302[m HEAD@{11}: pull --rebase origin main (start): checkout bfa630221c9925f8f5cef58c18553bec46da5908
